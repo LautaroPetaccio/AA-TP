@@ -1,7 +1,7 @@
 import email
 from nltk.tokenize import word_tokenize
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 from HTMLParser import HTMLParser
@@ -64,8 +64,14 @@ def tfidf_matrix(messages, custom_tokenizer):
     vectorizer = CountVectorizer(min_df=1)  
   else:
     # Using the nltk lemmatizer and tokenizer includes punctuation marks
-    vectorizer = CountVectorizer(min_df=1, tokenizer=LemmaTokenizer())
+    vectorizer = CountVectorizer(min_df=1)
   counts = vectorizer.fit_transform(messages).toarray()
-  # print counts
-  transformer = TfidfTransformer()
-  transformer.fit_transform(counts).toarray()
+  print "Count len: " + str(len(counts))
+  print "Count sub-array len: " + str(len(counts[0]))
+  return counts
+  # transformer = TfidfTransformer()
+  # print "Fitting tfidf matrix"
+  # tfidf = transformer.fit_transform(counts)
+  # return tfidf.toarray()
+  # print "Fitting matrix"
+  # return TfidfVectorizer(tokenizer=LemmaTokenizer()).fit_transform(messages).toarray()
