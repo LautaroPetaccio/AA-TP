@@ -5,6 +5,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 from HTMLParser import HTMLParser
+import numpy as np
+import pandas as pd
+import sys
 
 # HTML tag stripper from http://stackoverflow.com/questions/753052/strip-html-from-strings-in-python
 class MLStripper(HTMLParser):
@@ -59,19 +62,8 @@ def retrieve_payload_text(message):
   return payload
 
 def tfidf_matrix(messages, custom_tokenizer):
-  # TODO: try bi-grams
-  if not custom_tokenizer:
-    vectorizer = CountVectorizer(min_df=1)  
-  else:
-    # Using the nltk lemmatizer and tokenizer includes punctuation marks
-    vectorizer = CountVectorizer(min_df=1)
-  counts = vectorizer.fit_transform(messages).toarray()
-  print "Count len: " + str(len(counts))
-  print "Count sub-array len: " + str(len(counts[0]))
-  return counts
-  # transformer = TfidfTransformer()
-  # print "Fitting tfidf matrix"
-  # tfidf = transformer.fit_transform(counts)
-  # return tfidf.toarray()
-  # print "Fitting matrix"
-  # return TfidfVectorizer(tokenizer=LemmaTokenizer()).fit_transform(messages).toarray()
+  print "Fitting tfidf vectorizer"
+  fitted_vectorizer = TfidfVectorizer(max_features=10000, tokenizer=LemmaTokenizer()).fit(messages)
+  print "Transforming messages into tfidf matrix"
+  matrix = fitted_vectorizer.transform(messages)
+  return pd.DataFrame(matrix.toarray(), columns=fitted_vectorizer.get_feature_names())

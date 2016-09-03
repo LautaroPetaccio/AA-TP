@@ -14,13 +14,18 @@ df = pd.DataFrame(ham_txt+spam_txt, columns=['text'])
 print "Pre-processing mails"
 df['proccessed_text'] = map(lambda x: preprocessor.retrieve_message_text(x), df['text'])
 
-print "Getting the tfidf matrix"
 # Get tfidf matrix
-df['tfidf'] = preprocessor.tfidf_matrix(df['proccessed_text'], True)
+tfidf_feature = preprocessor.tfidf_matrix(df['proccessed_text'], True)
+# print tfidf_feature.shape[0] #gives number of row count
+# print tfidf_feature.shape[1] #gives number of col count
 
-print "Getting the mails length"
+
+# print "Getting the mails length"
 # Get mails length
-df['len'] = map(len, df.text)
+# df['len'] = map(len, df.text)
+
+# print df['len'].count()
+
 
 df['class'] = ['ham'] * len(ham_txt) + ['spam'] * len(spam_txt)
 
@@ -28,7 +33,8 @@ df['class'] = ['ham'] * len(ham_txt) + ['spam'] * len(spam_txt)
 clf = DecisionTreeClassifier()
 
 # Preparo data para clasificar
-X = df[['tfidf', 'len']].values
+# X = pd.concat([df['len'], tfidf_feature], ignore_index=True).values
+X = tfidf_feature.values
 y = df['class']
 
 print "Starting cross validation test"
