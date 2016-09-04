@@ -45,17 +45,6 @@ def extract_features(feature_extractor, feature_extractor_descr, data):
     
     return X
 
-def fit(clf, clf_descr, X, y):
-    print "Fitting a %s Classifier" % clf_descr
-
-    t0 = time()
-    clf.fit(X, y)
-    train_time = time() - t0
-
-    print "Done in %fs" % train_time
-    print ""
-    
-    return clf
 
 def cross_validate(clf, treat_descr, X, y, cv_folds=10, n_jobs=8):
     print "Running %d-Fold Cross Validation for %s" % (cv_folds, treat_descr)
@@ -78,7 +67,6 @@ def run_ml_pipeline(feature_extractor_tuple, clf_tuple, data, labels, cv_folds=1
     print "Running ML Pipeline for %s(%s)" % (treat_descr, run_start)
 
     X = extract_features(feature_extractor, feature_extractor_descr, data)
-    clf = fit(clf, clf_descr, X, labels)
     cross_validate(clf, clf_descr, X, labels, cv_folds=cv_folds, n_jobs=n_jobs)
 
     directory = 'results/%s/%s' % (treat_descr, run_start)
