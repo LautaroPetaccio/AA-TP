@@ -1,4 +1,3 @@
-import email
 from nltk import tokenize
 import email_text_retrieval as er
 from sklearn.base import BaseEstimator, TransformerMixin
