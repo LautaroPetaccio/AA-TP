@@ -17,17 +17,20 @@ print "------------------------------------------------------"
 print spam_txt[0]
 print "------------------------------------------------------"
 
-# Armo un dataset de Pandas 
+# Armo un dataset de Pandas
 # http://pandas.pydata.org/
 
-df = pd.DataFrame(ham_txt+spam_txt, columns=['text'])
-df['class'] = ['ham' for _ in range(len(ham_txt))]+['spam' for _ in range(len(spam_txt))]
+df = pd.DataFrame(ham_txt + spam_txt, columns=['text'])
+df['class'] = ['ham' for _ in range(
+    len(ham_txt))] + ['spam' for _ in range(len(spam_txt))]
 
-# Extraigo dos atributos simples: 
+# Extraigo dos atributos simples:
 # 1) Longitud del mail.
 df['len'] = map(len, df.text)
 
 # 2) Cantidad de espacios en el mail.
+
+
 def count_spaces(txt): return txt.count(" ")
 df['count_spaces'] = map(count_spaces, df.text)
 

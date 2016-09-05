@@ -1,80 +1,162 @@
-import json
-import os
+import time
 import io
-from time import time, strftime
+import json
+import email
+import random
+import os
+
 import numpy as np
-from sklearn.cross_validation import cross_val_score
+import pandas as pd
+
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.cross_validation import train_test_split
 from sklearn.externals import joblib
 
-def load_data(subset_size=None, spam_proportion=0.5):
-    ham_txt = json.load(io.open('dataset/ham_dev.json', encoding='utf8'))
-    spam_txt = json.load(io.open('dataset/spam_dev.json', encoding='utf8'))
-    
-    ham_size = len(ham_txt)
-    spam_size = len(spam_txt)
+import email_text_retrieval as er
 
-    if subset_size is not None:
-    	subset_size = min(ham_size + spam_size, subset_size)
-    	ham_size = int(subset_size * (1 - spam_proportion))
-    	spam_size = int(subset_size * spam_proportion)
 
-        ham_txt = [ham_txt[i] for i in np.random.choice(len(ham_txt), ham_size, replace=False)]
-        spam_txt = [spam_txt[i] for i  in np.random.choice(len(spam_txt), spam_size, replace=False)]
-    
-    data = np.array(ham_txt + spam_txt, dtype=object)
-    labels = np.array(['ham' for _ in range(len(ham_txt))] + ['spam' for _ in range(len(spam_txt))], dtype=object)
+def load_file_and_get_mails(filename, subset_size=None):
+    print 'Loading data from %s' % filename
 
-    data_size = len(data)
-    data_mb_size = sum(len(m.encode('utf-8')) for m in data) / 1e6
-
-    ham_proportion = float(ham_size) / float(data_size) * 100
-    spam_proportion = float(spam_size) / float(data_size) * 100
-
-    print "Dataset: %d samples(%0.3fMB) - Ham: %d(%0.2f%%) Spam: %d(%0.2f%%)" % (data_size, data_mb_size, ham_size, ham_proportion, spam_size, spam_proportion)
-    return data, labels
-
-def extract_features(feature_extractor, feature_extractor_descr, data):
-    print "Extracting features from the dataset using a %s" % feature_extractor_descr
-
-    t0 = time()
-    X = feature_extractor.fit_transform(data)
-    duration = time() - t0
+    t0 = time.time()
+    with io.open(filename, encoding='utf8') as f:
+        data = json.load(f)
+    duration = time.time() - t0
 
     print "Done in %fs" % duration
-    print "Set: %d samples %d features" % X.shape   
-    print ""
-    
-    return X
+
+    data_size = len(data)
+    data_mb_size = sum(len(d.encode('utf-8')) for d in data) / 1e6
+    print "Loaded %d(%0.3fMB) mails" % (data_size, data_mb_size)
+
+    if subset_size is not None:
+        subset_size = min(data_size, subset_size)
+        data = [data[i] for i in
+                np.random.choice(subset_size, subset_size, replace=False)]
+
+    print 'Parsing mails'
+
+    t0 = time.time()
+    mails = [email.message_from_string(d.encode('ascii', 'ignore'))
+             for d in data]
+    duration = time.time() - t0
+
+    print "Done in %fs" % duration
+
+    print "Parsed %d mails" % len(mails)
+
+    return mails
 
 
-def cross_validate(clf, treat_descr, X, y, cv_folds=10, n_jobs=8):
-    print "Running %d-Fold Cross Validation for %s" % (cv_folds, treat_descr)
+def load_data(subset_size=None, test_size=0.20, spam_proportion=0.5):
+    if subset_size is not None:
+        ham_size = int(subset_size * (1 - spam_proportion))
+        spam_size = int(subset_size * spam_proportion)
+    else:
+        ham_size = None
+        spam_size = None
 
-    t0 = time()
-    cv_scores = cross_val_score(clf, X, y, cv=cv_folds, n_jobs=n_jobs)
-    cv_time = time() - t0
-    
-    print "Done in %fs" % cv_time
-    print "CV Score: mean %f std %f" % (np.mean(cv_scores), np.std(cv_scores))
+    ham_mails = load_file_and_get_mails(
+        'dataset/ham_dev.json', subset_size=ham_size)
+    ham_size = len(ham_mails)
 
-    return cv_scores
+    spam_mails = load_file_and_get_mails(
+        'dataset/spam_dev.json', subset_size=spam_size)
+    spam_size = len(spam_mails)
 
-def run_ml_pipeline(feature_extractor_tuple, clf_tuple, data, labels, cv_folds=10, n_jobs=8):
-    feature_extractor, feature_extractor_descr = feature_extractor_tuple
-    clf, clf_descr = clf_tuple
-    treat_descr = '%s-%s' % (feature_extractor_descr, clf_descr)
-    run_start = strftime("%Y%m%d-%H%M%S")
+    mails = ham_mails + spam_mails
 
-    print "Running ML Pipeline for %s(%s)" % (treat_descr, run_start)
+    print 'Generating Pandas DataFrame'
 
-    X = extract_features(feature_extractor, feature_extractor_descr, data)
-    cross_validate(clf, clf_descr, X, labels, cv_folds=cv_folds, n_jobs=n_jobs)
+    t0 = time.time()
+    df = pd.DataFrame({
+        'subject': [m.get('subject') if m.get('subject') is not None else ''
+                    for m in mails],
+        'body': [er.retrieve_payload_text(m) for m in mails],
+        'content_types': [er.retrieve_content_type_list(m) for m in mails],
+        'label': ['ham'] * ham_size + ['spam'] * spam_size
+    })
 
-    directory = 'results/%s/%s' % (treat_descr, run_start)
+    duration = time.time() - t0
+
+    print "Done in %fs" % duration
+
+    print 'Splitting into Training and Test Set'
+
+    train_set, test_set = train_test_split(df, test_size=test_size)
+    train_size = len(train_set)
+    test_size = len(test_set)
+
+    duration = time.time() - t0
+
+    print "Done in %fs" % duration
+
+    train_size = len(train_set)
+    train_ham_size = sum(train_set['label'] == 'ham')
+    train_ham_proportion = float(train_ham_size) / float(train_size)
+    train_spam_size = sum(train_set['label'] == 'spam')
+    train_spam_proportion = float(train_spam_size) / float(train_size)
+
+    test_size = len(test_set)
+    test_ham_size = sum(test_set['label'] == 'ham')
+    test_ham_proportion = float(test_ham_size) / float(test_size)
+    test_spam_size = sum(test_set['label'] == 'spam')
+    test_spam_proportion = float(test_spam_size) / float(test_size)
+
+    print "Train Set: %d samples - Ham: %d(%0.2f%%) Spam: %d(%0.2f%%)" % \
+        (train_size, train_ham_size, train_ham_proportion,
+         train_spam_size, train_spam_proportion)
+    print "Test Set:  %d samples - Ham: %d(%0.2f%%) Spam: %d(%0.2f%%)" % \
+        (test_size, test_ham_size, test_ham_proportion,
+         test_spam_size, test_spam_proportion)
+
+    return train_set, test_set
+
+
+def save_model(name, model):
+    directory = 'models/%s/%s' % (name, time.strftime("%Y%m%d-%H%M%S"))
+
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    print "Saving Trained Extractor and Model %s" % treat_descr
-    joblib.dump(feature_extractor, '%s/extractor.pkl' % directory, compress=True)
-    joblib.dump(clf_tuple[0], '%s/classifier.pkl' % directory, compress=True)
-    
+    print "Saving Model %s to disk" % treat_descr
+
+    t0 = time.time()
+    joblib.dump(model, '%s/model.pkl' % directory, compress=True)
+    duration = time.time() - t0
+
+    print "Done in %fs" % duration
+    print "Saved at %s/model.pkl" % directory
+
+
+class ColumnSelectorExtractor(BaseEstimator, TransformerMixin):
+    """
+    Class for building sklearn Pipeline step.
+    This class should be used to select a column from a pandas data frame.
+    """
+
+    def __init__(self, column):
+        if isinstance(column, str):
+            self.column = column
+        else:
+            raise ValueError("Invalid type for column")
+
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, data_frame):
+        return data_frame[self.column]
+
+    def get_feature_names(self):
+        return [self.column]
+
+    def _isarray(self, x):
+        """
+        Returns true if x is a numpy array of dimension 1 or a
+        scipy sparse matrix of dimension 2 with 1 row and it's
+        type is int or string (both suitable for DataFrame indexing)
+        """
+        return ((isinstance(x, np.ndarray) and len(x.shape) == 1) or
+                (sp.sparse.issparse(x) and len(x.shape) == 2 and
+                 x.shape[0] == 1)) and (np.issubdtype(x.dtype, np.str) or
+                                        np.issubdtype(x.dtype, np.int))
