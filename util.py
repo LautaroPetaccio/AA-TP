@@ -1,13 +1,14 @@
 import json
 import os
+import io
 from time import time, strftime
 import numpy as np
 from sklearn.cross_validation import cross_val_score
 from sklearn.externals import joblib
 
 def load_data(subset_size=None, spam_proportion=0.5):
-    ham_txt = json.load(open('dataset/ham_dev.json'))
-    spam_txt = json.load(open('dataset/spam_dev.json'))
+    ham_txt = json.load(io.open('dataset/ham_dev.json', encoding='utf8'))
+    spam_txt = json.load(io.open('dataset/spam_dev.json', encoding='utf8'))
     
     ham_size = len(ham_txt)
     spam_size = len(spam_txt)
@@ -17,8 +18,8 @@ def load_data(subset_size=None, spam_proportion=0.5):
     	ham_size = int(subset_size * (1 - spam_proportion))
     	spam_size = int(subset_size * spam_proportion)
 
-        ham_txt = np.random.choice(ham_txt, size=ham_size, replace=False)
-        spam_txt = np.random.choice(spam_txt, size=spam_size, replace=False)
+        ham_txt = [ham_txt[i] for i in np.random.choice(len(ham_txt), ham_size, replace=False)]
+        spam_txt = [spam_txt[i] for i  in np.random.choice(len(spam_txt), spam_size, replace=False)]
     
     data = np.array(ham_txt + spam_txt, dtype=object)
     labels = np.array(['ham' for _ in range(len(ham_txt))] + ['spam' for _ in range(len(spam_txt))], dtype=object)

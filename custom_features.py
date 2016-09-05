@@ -1,5 +1,8 @@
+import email
 from nltk import tokenize
 from sklearn.base import BaseEstimator, TransformerMixin
+import email_text_retrieval as er
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 class SentimentsStats(BaseEstimator, TransformerMixin):
   def fit(self, x, y = None):
@@ -26,7 +29,7 @@ class EmailParser(BaseEstimator, TransformerMixin):
     return self
 
   def transform(self, emails):
-    return map(lambda email: email.message_from_string(email))
+    return map(lambda message: email.message_from_string(message.encode('ascii', 'ignore')), emails)
 
 class ItemSelector(BaseEstimator, TransformerMixin):
   def __init__(self, key):
@@ -36,7 +39,7 @@ class ItemSelector(BaseEstimator, TransformerMixin):
     return self
 
   def transform(self, messages):
-    if key == 'subject':
-      return map(lambda message: message.get('subject'))
+    if self.key == 'subject':
+      return map(lambda message: message.get('subject'), messages)
     else:
-      return map(lambda message: er.retrieve_payload_text(message))
+      return map(lambda message: er.retrieve_payload_text(message), messages)

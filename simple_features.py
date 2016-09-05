@@ -36,11 +36,12 @@ def has_image(message):
 
 # Returns true if the message has te content type specified
 def has_content_type(message, content_type):
+  if message.is_multipart():
+    for payload_message in message.get_payload():
+      if has_content_type(payload_message, content_type):
+        return True
   if content_type in message.get_content_type():
     return True
-  for message in message.message.get_payload():
-    if has_content_type(message, content_type):
-      return True
   return False
 
 # Returns the number of sentences in a mail body
