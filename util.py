@@ -48,7 +48,7 @@ def load_file_and_get_mails(filename, subset_size=None):
     return mails
 
 
-def load_data(subset_size=None, test_size=0.20, spam_proportion=0.5):
+def load_data(subset_size=None, test_size=0.20, spam_proportion=0.5, merge_body_and_subject=False):
     if subset_size is not None:
         ham_size = int(subset_size * (1 - spam_proportion))
         spam_size = int(subset_size * spam_proportion)
@@ -76,6 +76,9 @@ def load_data(subset_size=None, test_size=0.20, spam_proportion=0.5):
         'content_types': [er.retrieve_content_type_list(m) for m in mails],
         'label': ['ham'] * ham_size + ['spam'] * spam_size
     })
+    if merge_body_and_subject:
+        df['body_and_subject'] = [m.get('subject') + ' ' + er.retrieve_payload_text(m) if m.get('subject')
+            is not None else er.retrieve_payload_text(m) for m in mails]
 
     duration = time.time() - t0
 
