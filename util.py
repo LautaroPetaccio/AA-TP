@@ -48,7 +48,7 @@ def load_file_and_get_mails(filename, subset_size=None):
     return mails
 
 
-def load_data(subset_size=None, test_size=0.20, spam_proportion=0.5, merge_body_and_subject=False):
+def load_data(subset_size=None, test_size=0.20, spam_proportion=0.5):
     if subset_size is not None:
         ham_size = int(subset_size * (1 - spam_proportion))
         spam_size = int(subset_size * spam_proportion)
@@ -76,9 +76,6 @@ def load_data(subset_size=None, test_size=0.20, spam_proportion=0.5, merge_body_
         'content_types': [er.retrieve_content_type_list(m) for m in mails],
         'label': ['ham'] * ham_size + ['spam'] * spam_size
     })
-    if merge_body_and_subject:
-        df['body_and_subject'] = [m.get('subject') + ' ' + er.retrieve_payload_text(m) if m.get('subject')
-            is not None else er.retrieve_payload_text(m) for m in mails]
 
     duration = time.time() - t0
 
@@ -153,13 +150,18 @@ class ColumnSelectorExtractor(BaseEstimator, TransformerMixin):
     def get_feature_names(self):
         return [self.column]
 
-    def _isarray(self, x):
-        """
-        Returns true if x is a numpy array of dimension 1 or a
-        scipy sparse matrix of dimension 2 with 1 row and it's
-        type is int or string (both suitable for DataFrame indexing)
-        """
-        return ((isinstance(x, np.ndarray) and len(x.shape) == 1) or
-                (sp.sparse.issparse(x) and len(x.shape) == 2 and
-                 x.shape[0] == 1)) and (np.issubdtype(x.dtype, np.str) or
-                                        np.issubdtype(x.dtype, np.int))
+
+class SubjectAndBodyMergerExtractor(BaseEstimator, TransformerMixin):
+    """
+    Class for building sklearn Pipeline step.
+    This class should be used to select a column from a pandas data frame.
+    """
+
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, data_frame):
+        return data_frame['subject'] + ' ' + data_frame['body']
+
+    def get_feature_names(self):
+        return ['subject_and_body']
