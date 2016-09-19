@@ -2,7 +2,6 @@ import time
 import io
 import json
 import email
-import random
 import os
 
 import numpy as np
@@ -14,83 +13,40 @@ from sklearn.externals import joblib
 
 import email_text_retrieval as er
 
-
-def load_file_and_get_mails(filename, subset_size=None):
-    print 'Loading data from %s' % filename
-
+def print_time(func):
     t0 = time.time()
-    with io.open(filename, encoding='utf8') as f:
-        data = json.load(f)
+    res = func()
     duration = time.time() - t0
+    print 'Done in %fs' % duration
+    return res
 
-    print "Done in %fs" % duration
+def load_file_and_get_mails(label, subset_size=None):
+    filename = 'dataset/%s_dev.json' % label
+    print 'Loading %s data from %s' % (label, filename)
+    with io.open(filename, encoding='ascii') as file:
+        plain_mails = print_time(lambda: [plain_mail.encode('ascii', 'ignore') for plain_mail in json.load(file)])
 
-    data_size = len(data)
-    data_mb_size = sum(len(d.encode('utf-8')) for d in data) / 1e6
-    print "Loaded %d(%0.3fMB) mails" % (data_size, data_mb_size)
+    print 'Loaded %d(%0.3fMB) %s mails' % (len(plain_mails), sum(map(len, plain_mails)) / 1e6, label)
 
     if subset_size is not None:
         subset_size = min(data_size, subset_size)
-        data = [data[i] for i in
-                np.random.choice(subset_size, subset_size, replace=False)]
+        plain_data = [plain_data[i] for i in np.random.choice(subset_size, subset_size, replace=False)]
 
-    print 'Parsing mails'
-
-    t0 = time.time()
-    mails = [email.message_from_string(d.encode('ascii', 'ignore'))
-             for d in data]
-    duration = time.time() - t0
-
-    print "Done in %fs" % duration
-
-    print "Parsed %d mails" % len(mails)
+    print 'Parsing %s mails' % label
+    mails = print_time(lambda: map(email.message_from_string, plain_mails))
+    print 'Parsed %d %s mails' % (len(mails), label)
 
     return mails
 
-
-def load_data(subset_size=None, test_size=0.20, spam_proportion=0.5):
-    if subset_size is not None:
-        ham_size = int(subset_size * (1 - spam_proportion))
-        spam_size = int(subset_size * spam_proportion)
-    else:
-        ham_size = None
-        spam_size = None
-
-    ham_mails = load_file_and_get_mails(
-        'dataset/ham_dev.json', subset_size=ham_size)
-    ham_size = len(ham_mails)
-
-    spam_mails = load_file_and_get_mails(
-        'dataset/spam_dev.json', subset_size=spam_size)
-    spam_size = len(spam_mails)
-
-    mails = ham_mails + spam_mails
-
-    print 'Generating Pandas DataFrame'
-
-    t0 = time.time()
-    df = pd.DataFrame({
-        'subject': [m.get('subject') if m.get('subject') is not None else ''
-                    for m in mails],
+def create_dataframe_from_mails(mails, labels):
+    return pd.DataFrame({
+        'subject': [m.get('subject') if m.get('subject') is not None else '' for m in mails],
         'body': [er.retrieve_payload_text(m) for m in mails],
         'content_types': [er.retrieve_content_type_list(m) for m in mails],
-        'label': ['ham'] * ham_size + ['spam'] * spam_size
-    })
+        'label': labels
+    }, columns=['content_types', 'subject', 'body', 'label'])
 
-    duration = time.time() - t0
-
-    print "Done in %fs" % duration
-
-    print 'Splitting into Training and Test Set'
-
-    train_set, test_set = train_test_split(df, test_size=test_size)
-    train_size = len(train_set)
-    test_size = len(test_set)
-
-    duration = time.time() - t0
-
-    print "Done in %fs" % duration
-
+def print_sets_summarys(train_set, test_set):
     train_size = len(train_set)
     train_ham_size = sum(train_set['label'] == 'ham')
     train_ham_proportion = float(train_ham_size) / float(train_size)
@@ -103,30 +59,53 @@ def load_data(subset_size=None, test_size=0.20, spam_proportion=0.5):
     test_spam_size = sum(test_set['label'] == 'spam')
     test_spam_proportion = float(test_spam_size) / float(test_size)
 
-    print "Train Set: %d samples - Ham: %d(%0.2f%%) Spam: %d(%0.2f%%)" % \
+    print 'Train Set: %d samples - ham: %d(%0.2f%%) spam: %d(%0.2f%%)' % \
         (train_size, train_ham_size, train_ham_proportion,
          train_spam_size, train_spam_proportion)
-    print "Test Set:  %d samples - Ham: %d(%0.2f%%) Spam: %d(%0.2f%%)" % \
+    print 'Test Set:  %d samples - ham: %d(%0.2f%%) spam: %d(%0.2f%%)' % \
         (test_size, test_ham_size, test_ham_proportion,
          test_spam_size, test_spam_proportion)
+
+
+def load_raw_data(test_size=0.20, subset_size=None, spam_proportion=0.5, random_state=None):
+    if subset_size is not None:
+        ham_size = int(subset_size * (1 - spam_proportion))
+        spam_size = int(subset_size * spam_proportion)
+    else:
+        ham_size = None
+        spam_size = None
+
+    ham_mails = load_file_and_get_mails('ham', subset_size=ham_size)
+    print ''
+
+    spam_mails = load_file_and_get_mails('spam', subset_size=spam_size)
+    print ''
+
+    print 'Generating pandas DataFrame'
+    df = print_time(lambda: create_dataframe_from_mails(ham_mails + spam_mails, ['ham'] * len(ham_mails) + ['spam'] * len(spam_mails)))
+    print ''
+
+    print 'Splitting into Train Set and Test Set'
+    train_set, test_set = print_time(lambda: train_test_split(df, test_size=test_size, random_state=random_state))
+    print ''
+
+    print 'Resetting indexes'
+    train_set, test_set = print_time(lambda: (train_set.reset_index(drop=True), test_set.reset_index(drop=True)))
 
     return train_set, test_set
 
 
 def save_model(name, model):
-    directory = 'models/%s/%s' % (name, time.strftime("%Y%m%d-%H%M%S"))
+    if not os.path.exists('models'):
+        os.makedirs('models')
 
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-    print "Saving Model %s to disk" % treat_descr
-
+    print 'Saving model %s to disk' % treat_descr
     t0 = time.time()
-    joblib.dump(model, '%s/model.pkl' % directory, compress=True)
+    joblib.dump(model, 'models/%s.pkl' % name, compress=True)
     duration = time.time() - t0
+    print 'Done in %fs' % duration
 
-    print "Done in %fs" % duration
-    print "Saved at %s/model.pkl" % directory
+    print 'Saved at models/%s.pkl' % name
 
 
 class ColumnSelectorExtractor(BaseEstimator, TransformerMixin):
@@ -139,7 +118,7 @@ class ColumnSelectorExtractor(BaseEstimator, TransformerMixin):
         if isinstance(column, str):
             self.column = column
         else:
-            raise ValueError("Invalid type for column")
+            raise ValueError('Invalid type for column')
 
     def fit(self, x, y=None):
         return self

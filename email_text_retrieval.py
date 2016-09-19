@@ -1,9 +1,6 @@
 import email
 import itertools
 
-from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
-from nltk.corpus import stopwords
 from HTMLParser import HTMLParser
 
 
@@ -13,7 +10,6 @@ class MLStripper(HTMLParser):
     http://stackoverflow.com/questions/753052/strip-html-from-strings-in-python
 
     """
-
     def __init__(self):
         self.reset()
         self.fed = []
@@ -29,16 +25,6 @@ def strip_tags(html):
     s = MLStripper()
     s.feed(html)
     return s.get_data()
-
-
-class LemmaTokenizer(object):
-    """Custom tokenizer and lemmatizer"""
-
-    def __init__(self):
-        self.wnl = WordNetLemmatizer()
-
-    def __call__(self, doc):
-        return [self.wnl.lemmatize(t) for t in word_tokenize(doc)]
 
 
 def retrieve_message_text(message_text):
