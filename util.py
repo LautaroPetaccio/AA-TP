@@ -13,10 +13,14 @@ from sklearn.externals import joblib
 
 import email_text_retrieval as er
 
-def print_time(func):
+def measure_time(func):
     t0 = time.time()
     res = func()
     duration = time.time() - t0
+    return res, duration
+
+def print_time(func):
+    res, duration = measure_time(func)
     print 'Done in %fs' % duration
     return res
 
@@ -95,17 +99,13 @@ def load_raw_data(test_size=0.20, subset_size=None, spam_proportion=0.5, random_
     return train_set, test_set
 
 
-def save_model(name, model):
-    if not os.path.exists('models'):
-        os.makedirs('models')
+def save_model(name, folder, model):
+    if not os.path.exists(folder):
+        os.makedirs(folder)
 
-    print 'Saving model %s to disk' % treat_descr
-    t0 = time.time()
-    joblib.dump(model, 'models/%s.pkl' % name, compress=True)
-    duration = time.time() - t0
-    print 'Done in %fs' % duration
-
-    print 'Saved at models/%s.pkl' % name
+    print 'Saving model %s to disk' % name
+    print_time(lambda: joblib.dump(model, '%s/%s.pkl' % (folder, name), compress=True))    
+    print 'Saved at %s/%s.pkl' % (folder, name)
 
 
 class ColumnSelectorExtractor(BaseEstimator, TransformerMixin):
