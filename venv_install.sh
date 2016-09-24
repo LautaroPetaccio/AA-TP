@@ -1,5 +1,5 @@
 #!/bin/bash
-virtualenv --no-site-packages venv
+virtualenv --system-site-packages venv
 source venv/bin/activate
 pip install nltk --upgrade
 pip install joblib --upgrade
