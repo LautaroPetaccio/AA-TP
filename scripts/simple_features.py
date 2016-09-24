@@ -2,7 +2,44 @@ import pandas as pd
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from nltk import tokenize
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
+
+
+class ColumnSelectorExtractor(BaseEstimator, TransformerMixin):
+    """
+    Class for building sklearn Pipeline step.
+    This class should be used to select a column from a pandas data frame.
+    """
+
+    def __init__(self, column):
+        if isinstance(column, str):
+            self.column = column
+        else:
+            raise ValueError('Invalid type for column')
+
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, data_frame):
+        return data_frame[self.column]
+
+    def get_feature_names(self):
+        return [self.column]
+
+
+class SubjectAndBodyMergerExtractor(BaseEstimator, TransformerMixin):
+    """
+    Class for building sklearn Pipeline step.
+    This class should be used to select a column from a pandas data frame.
+    """
+
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, data_frame):
+        return data_frame['subject'] + ' ' + data_frame['body']
+
+    def get_feature_names(self):
+        return ['subject_and_body']
 
 
 class SimpleFeaturesExtractor(BaseEstimator, TransformerMixin):
@@ -27,31 +64,7 @@ class SimpleFeaturesExtractor(BaseEstimator, TransformerMixin):
         return self.names
 
     def get_params(self, deep=False):
-        return { 'extractors_tuple': zip(self.names, self.extractors) }
-
-
-class SentimentsStats(BaseEstimator, TransformerMixin):
-    def fit(self, x, y=None):
-        return self
-
-    def transform(self, mails):
-        sid = SentimentIntensityAnalyzer()
-        sentiment_analysis_result = []
-        for mail in mails:
-            body_sentences = tokenize.sent_tokenize(mail)
-            sentences_stats = map(
-                lambda sentence: sid.polarity_scores(sentence), body_sentences)
-            stats = {'neg': 0, 'neu': 0, 'pos': 0}
-            for sentence_stat in sentences_stats:
-                stats['neg'] += sentence_stat['neg']
-                stats['neu'] += sentence_stat['neu']
-                stats['pos'] += sentence_stat['pos']
-            if len(sentences_stats) != 0:
-                stats['neg'] /= len(sentences_stats)
-                stats['neu'] /= len(sentences_stats)
-                stats['pos'] /= len(sentences_stats)
-            sentiment_analysis_result.append(stats)
-        return sentiment_analysis_result
+        return {'extractors_tuple': zip(self.names, self.extractors)}
 
 
 def subject_length(mails):

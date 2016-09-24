@@ -4,12 +4,17 @@ import itertools
 from HTMLParser import HTMLParser
 
 
+def parse_mails(plain_mails, label):
+    return map(email.message_from_string, plain_mails)
+
+
 class MLStripper(HTMLParser):
     """
     HTML tag stripper from
     http://stackoverflow.com/questions/753052/strip-html-from-strings-in-python
 
     """
+
     def __init__(self):
         self.reset()
         self.fed = []
@@ -61,7 +66,6 @@ def retrieve_payload_text(message):
 
 def retrieve_content_type_list(message):
     """Returns a list with all the content types present in this message"""
-
     if message.is_multipart():
         return list(itertools.chain.from_iterable(
             [retrieve_content_type_list(payload_message)
