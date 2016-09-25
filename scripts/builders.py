@@ -129,7 +129,10 @@ def build_pipeline(simple_features=True, subject_pipeline_type=None, body_pipeli
         # Usamos FeatureUnion para combinar los distintos extractores de
         # atributos
         names.append(classifier_type)
-        return '__'.join(names), Pipeline([('feature_extractors', FeatureUnion(extractors)), build_classifier(classifier_type)])
+        return '__'.join(names), dict(simple_features=simple_features,
+                                      subject_pipeline_type=subject_pipeline_type,
+                                      body_pipeline_type=body_pipeline_type,
+                                      classifier_type=classifier_type), Pipeline([('feature_extractors', FeatureUnion(extractors)), build_classifier(classifier_type)])
     else:
         return None
 

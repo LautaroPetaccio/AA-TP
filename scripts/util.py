@@ -156,40 +156,40 @@ def evaluate_and_meassure(X, pipelines, results_prefix, cv=10, n_jobs=1, verbose
     scores = {}
     cv_times = {}
 
+    loaded_scores = {}
+    loaded_cv_times = {}
+
     if not force_run and os.path.isfile(scores_name):
         print 'Loading previous scores'
-        scores = print_time(lambda: joblib.load(scores_name))
+        loaded_scores = print_time(lambda: joblib.load(scores_name))
 
     if not force_run and os.path.isfile(cv_times_name):
         print 'Loading previous cv_times'
-        cv_times = print_time(lambda: joblib.load(cv_times_name))
+        loaded_cv_times = print_time(lambda: joblib.load(cv_times_name))
 
     print ''
 
     i = 0
     pipelines_count = len(pipelines)
 
-    for name, pipeline in pipelines:
+    for name, _, pipeline in pipelines:
         i = i + 1
-        print 'Running %d-Fold CV for pipeline %s(%d/%d)' % (cv, name, i, pipelines_count)
 
-        if name in scores:
-            # print 'Loaded from previous run %d-Fold CV for pipeline
-            # %s(%d/%d)' % (cv, name, i, pipelines_count)
-            model_scores = scores[name]
-            model_cv_time = cv_times[name]
+        if name in loaded_scores:
+            print 'Loaded from previous run %d-Fold CV for pipeline %s(%d/%d)' % (cv, name, i, pipelines_count)
+            model_scores = loaded_scores[name]
+            model_cv_time = loaded_cv_times[name]
         else:
-            # print 'Running %d-Fold CV for pipeline %s(%d/%d)' % (cv, name, i,
-            # pipelines_count)
+            print 'Running %d-Fold CV for pipeline %s(%d/%d)' % (cv, name, i, pipelines_count)
             model_scores, model_cv_time = measure_time(lambda: cross_val_score(
                 pipeline, X, X.label, cv=cv, n_jobs=n_jobs, verbose=verbose))
-            # print 'Done in %fs' % model_cv_time
-            scores[name] = model_scores
-            cv_times[name] = model_cv_time
-            joblib.dump(scores, scores_name, compress=True)
-            joblib.dump(cv_times, cv_times_name, compress=True)
+            print 'Done in %fs' % model_cv_time
 
-        print 'Done in %fs' % model_cv_time
+        scores[name] = model_scores
+        cv_times[name] = model_cv_time
+        joblib.dump(scores, scores_name, compress=True)
+        joblib.dump(cv_times, cv_times_name, compress=True)
+
         print 'CV scores mean: %f std: %f' % (np.mean(model_scores), np.std(model_scores))
         print ''
 
