@@ -3,7 +3,7 @@ import sys
 import io
 import email
 import pandas as pd
-import email_text_retrieval as er
+import scripts.email_features as er
 import json
 import argparse
 import joblib
