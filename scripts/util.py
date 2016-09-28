@@ -146,26 +146,23 @@ def print_sets_summarys(train_set, test_set):
          test_spam_size, test_spam_proportion)
 
 
-def evaluate_and_meassure(X, pipelines, results_prefix, cv=10, n_jobs=1, verbose=0, force_run=False):
+def evaluate_and_measure(X, pipelines, results_prefix, cv=10, n_jobs=1, verbose=False, force_run=False):
     if not os.path.exists('results'):
         os.makedirs('results')
 
-    scores_name = 'results/%s_scores.pkl' % results_prefix
-    cv_times_name = 'results/%s_cv_times.pkl' % results_prefix
+    scores_filename = 'results/%s_scores.pkl' % results_prefix
+    cv_times_filename = 'results/%s_cv_times.pkl' % results_prefix
 
     scores = {}
     cv_times = {}
 
-    loaded_scores = {}
-    loaded_cv_times = {}
+    if not force_run and os.path.isfile(scores_filename):
+        print 'Loading scores from %s' % scores_filename
+        scores = print_time(lambda: joblib.load(scores_filename))
 
-    if not force_run and os.path.isfile(scores_name):
-        print 'Loading previous scores'
-        loaded_scores = print_time(lambda: joblib.load(scores_name))
-
-    if not force_run and os.path.isfile(cv_times_name):
-        print 'Loading previous cv_times'
-        loaded_cv_times = print_time(lambda: joblib.load(cv_times_name))
+    if not force_run and os.path.isfile(cv_times_filename):
+        print 'Loading cv_times from %s' % cv_times_filename
+        cv_times = print_time(lambda: joblib.load(cv_times_filename))
 
     print ''
 
@@ -175,23 +172,27 @@ def evaluate_and_meassure(X, pipelines, results_prefix, cv=10, n_jobs=1, verbose
     for name, _, pipeline in pipelines:
         i = i + 1
 
-        if name in loaded_scores:
-            print 'Loaded from previous run %d-Fold CV for pipeline %s(%d/%d)' % (cv, name, i, pipelines_count)
-            model_scores = loaded_scores[name]
-            model_cv_time = loaded_cv_times[name]
+        if name in scores:
+            if verbose:
+                print 'Loaded from previous run %d-Fold CV for pipeline %s(%d/%d)' % (cv, name, i, pipelines_count)
+            model_scores = scores[name]
+            model_cv_time = cv_times[name]
         else:
-            print 'Running %d-Fold CV for pipeline %s(%d/%d)' % (cv, name, i, pipelines_count)
+            if verbose:
+                print 'Running %d-Fold CV for pipeline %s(%d/%d)' % (cv, name, i, pipelines_count)
             model_scores, model_cv_time = measure_time(lambda: cross_val_score(
-                pipeline, X, X.label, cv=cv, n_jobs=n_jobs, verbose=verbose))
-            print 'Done in %fs' % model_cv_time
+                pipeline, X, X.label, cv=cv, n_jobs=n_jobs))
+            if verbose:
+                print 'Done in %fs' % model_cv_time
 
         scores[name] = model_scores
         cv_times[name] = model_cv_time
-        joblib.dump(scores, scores_name, compress=True)
-        joblib.dump(cv_times, cv_times_name, compress=True)
+        joblib.dump(scores, scores_filename, compress=True)
+        joblib.dump(cv_times, cv_times_filename, compress=True)
 
-        print 'CV scores mean: %f std: %f' % (np.mean(model_scores), np.std(model_scores))
-        print ''
+        if verbose:
+            print 'CV scores mean: %f std: %f' % (np.mean(model_scores), np.std(model_scores))
+            print ''
 
     return scores, cv_times
 
